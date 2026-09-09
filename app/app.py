@@ -6,6 +6,9 @@ import re
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
 
 # Initialize Fastapi app
 app = FastAPI(
@@ -14,11 +17,11 @@ app = FastAPI(
     version='1.0'
     )
 
-model = T5ForConditionalGeneration.from_pretrained('./model')
-tokenizer = T5Tokenizer.from_pretrained('./model')
+model = T5ForConditionalGeneration.from_pretrained('./summary_model')
+tokenizer = T5Tokenizer.from_pretrained('./summary_model')
 
 # Templating
-templates = Jinja2Templates(directory='.')
+templates = Jinja2Templates(directory=BASE_DIR)
 
 class DialogueInput(BaseModel):
     dialogue: str
@@ -30,6 +33,27 @@ def clean_data(text):
 
     return text
 
+def summarize_dialogue(dialogue:str) -> str:
+  dialogue = clean_data(dialogue)
+
+  inputs = tokenizer(
+      dialogue,
+      padding='max_length',
+      max_length=512,
+      truncation=True,
+      return_tensors = 'pt'
+  )
+
+  targets = model.generate(
+      input_ids = inputs['input_ids'],
+      attention_mask = inputs['attention_mask'],
+      max_length=150,
+      num_beams=4,
+      early_stopping=True
+  )
+
+  summary = tokenizer.decode(targets[0],skip_special_tokens=True)
+  return summary
 
 # API Endpoints
 
@@ -38,7 +62,10 @@ async def create_item(dialogue: DialogueInput):
     summary = summarize_dialogue(dialogue.dialogue)
     return {'summary':summary}
 
-@app.get('/',response_class=HTMLResponse)
+@app.get("/")
 async def home(request: Request):
-    return templates.TemplateResponse('index.html',{'request':request})
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html"
+    )
 

@@ -27,13 +27,14 @@ class DialogueInput(BaseModel):
     dialogue: str
 
 def clean_data(text):
-    text = re.sub(r'r/n/',' ',text)
-    text = re.sub(r's+',' ',text)
+    text = re.sub(r'\r\n',' ',text)
+    text = re.sub(r'\s+',' ',text)
     text = re.sub(r'<.*?>',' ',text)
+    text = text.strip().lower()
 
     return text
 
-def summarize_dialogue(dialogue:str) -> str:
+def summarize_dialogue(dialogue):
   dialogue = clean_data(dialogue)
 
   inputs = tokenizer(
